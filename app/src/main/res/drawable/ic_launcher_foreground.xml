@@ -1,0 +1,24 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- большой круг-«пластинка» -->
+    <path
+        android:fillColor="#FFEADDFF"
+        android:pathData="M54,54m-29,0a29,29 0,1 1,58 0a29,29 0,1 1,-58 0" />
+    <!-- нота ♫ -->
+    <path
+        android:fillColor="#FF381E72"
+        android:pathData="M47.5,67 L47.5,41 L69.5,36 L69.5,63 L65.5,63 L65.5,41.9 L51.5,45.1 L51.5,67 Z" />
+    <path
+        android:fillColor="#FF381E72"
+        android:pathData="M40.5,67 a5.5,5 0 1,0 11,0 a5.5,5 0 1,0 -11,0" />
+    <path
+        android:fillColor="#FF381E72"
+        android:pathData="M58.5,63 a5.5,5 0 1,0 11,0 a5.5,5 0 1,0 -11,0" />
+    <!-- розовая «искорка» -->
+    <path
+        android:fillColor="#FFFFB1C8"
+        android:pathData="M76,30m-4.5,0a4.5,4.5 0,1 1,9 0a4.5,4.5 0,1 1,-9 0" />
+</vector>
