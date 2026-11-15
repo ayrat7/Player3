@@ -25,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -60,6 +62,8 @@ fun SettingsScreen(vm: MainViewModel) {
     val s by vm.settings.collectAsStateWithLifecycle()
     val isDark = s.themeMode == 2 || s.themeMode == 0
     val dynamicAvailable = Build.VERSION.SDK_INT >= 31
+    val hidden by vm.hiddenTracks.collectAsStateWithLifecycle()
+    var showHidden by remember { mutableStateOf(false) }
 
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -110,6 +114,11 @@ fun SettingsScreen(vm: MainViewModel) {
         Section("Плеер") {
             ChipsRow("Форма обложки", listOf("Скруглённая", "Круг", "Квадрат", "Срезанная"), s.artShape) { vm.setPref(Keys.artShape, it) }
             SliderRow("Размер обложки", s.artSize, 0.5f..1f, "${(s.artSize * 100).roundToInt()}%") { vm.setPref(Keys.artSize, it) }
+            ChipsRow("Анимация вокруг обложки", listOf("Нет", "Кольцо", "Пульс", "Волны"), s.artFx) { vm.setPref(Keys.artFx, it) }
+            SwitchRow("Волнистая полоса", "Прогресс-«червяк» как в Material 3: волнится, пока играет", s.wavySeek) { vm.setPref(Keys.wavySeek, it) }
+            if (s.wavySeek) {
+                SliderRow("Высота волны", s.waveAmp, 0.4f..2f, "${(s.waveAmp * 100).roundToInt()}%") { vm.setPref(Keys.waveAmp, it) }
+            }
             ChipsRow("Кнопка «играть»", listOf("Морфинг", "Квадрат", "Таблетка"), s.playButtonShape) { vm.setPref(Keys.playButtonShape, it) }
             SwitchRow("Цветной фон", "Градиент из цвета темы", s.artBackground) { vm.setPref(Keys.artBackground, it) }
             SwitchRow("Вращение обложки", "Обложка крутится, пока играет музыка", s.spinArt) { vm.setPref(Keys.spinArt, it) }
@@ -136,8 +145,28 @@ fun SettingsScreen(vm: MainViewModel) {
             }
         }
 
+        Section("Выход звука") {
+            ChipsRow(
+                "Принудительный выход",
+                listOf("Авто", "Динамик", "Разговорный", "Проводные", "Bluetooth", "USB"),
+                s.outputMode
+            ) { vm.setPref(Keys.outputMode, it) }
+            Text(
+                "Если выбранное устройство не подключено, звук идёт как обычно, а при подключении переключится сам.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            SwitchRow("Пауза при отключении наушников", "Выключите, чтобы музыка не останавливалась", s.pauseOnUnplug) { vm.setPref(Keys.pauseOnUnplug, it) }
+        }
+
+        Section("Скрытые треки и сброс") {
+            OutlinedButton(onClick = { showHidden = true }) { Text("Скрытые треки (${hidden.size})") }
+            OutlinedButton(onClick = { vm.resetSettings() }) { Text("Сбросить настройки к начальным") }
+        }
+        if (showHidden) HiddenDialog(vm) { showHidden = false }
+
         Section("О приложении") {
-            Text("Player3 • версия 1.0", style = MaterialTheme.typography.titleSmall)
+            Text("Player3 • версия 1.1", style = MaterialTheme.typography.titleSmall)
             Text(
                 "com.rilelchaz.player3\nMaterial 3 • Jetpack Compose • Media3",
                 style = MaterialTheme.typography.bodySmall,

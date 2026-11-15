@@ -13,6 +13,14 @@ data class Track(
     val durationMs: Long,
     val uri: Uri,
     val dateAdded: Long,
+    // исходные метаданные из файла (для «сбросить»)
+    val origTitle: String = title,
+    val origArtist: String = artist,
+    val origAlbum: String = album,
+    // обложка: либо своя (файл в приложении), либо сам трек (достанем из mp3)
+    val artUri: Uri = uri,
+    val customCover: Boolean = false,
+    val edited: Boolean = false,
 ) {
     fun toMediaItem(): MediaItem = MediaItem.Builder()
         .setMediaId(id.toString())
@@ -22,7 +30,7 @@ data class Track(
                 .setTitle(title)
                 .setArtist(artist)
                 .setAlbumTitle(album)
-                .setArtworkUri(uri) // обложку достаёт наш BitmapLoader
+                .setArtworkUri(artUri) // обложку достаёт наш BitmapLoader
                 .build()
         )
         .build()
@@ -51,6 +59,9 @@ data class AppSettings(
     val artSize: Float = 0.85f,
     val artBackground: Boolean = true,
     val spinArt: Boolean = false,
+    val artFx: Int = 0,                // 0 нет, 1 кольцо, 2 пульс, 3 волны вокруг обложки
+    val wavySeek: Boolean = true,      // волнистая полоса прогресса
+    val waveAmp: Float = 1f,           // высота волны
     val playButtonShape: Int = 0,      // 0 морфинг круг<->скругл., 1 скруглённый, 2 таблетка
     val showRemaining: Boolean = false,
     val haptics: Boolean = true,
@@ -62,4 +73,7 @@ data class AppSettings(
     // Библиотека
     val minDurationSec: Int = 30,
     val sort: Int = 0,                 // 0 название, 1 исполнитель, 2 новые, 3 длина
+    // Выход звука
+    val outputMode: Int = 0,           // 0 авто, 1 динамик, 2 разговорный, 3 проводные, 4 bluetooth, 5 usb
+    val pauseOnUnplug: Boolean = true,
 )

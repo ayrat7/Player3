@@ -23,6 +23,12 @@ object ArtLoader {
         cache.get(key)?.let { return it }
         if (missing.contains(key)) return null
 
+        if (uri.scheme == "file") {
+            val b = decodeFile(uri.path, size)
+            if (b != null) cache.put(key, b) else missing.add(key)
+            return b
+        }
+
         var bmp: Bitmap? = null
         if (Build.VERSION.SDK_INT >= 29) {
             bmp = try {
@@ -35,6 +41,19 @@ object ArtLoader {
 
         if (bmp != null) cache.put(key, bmp) else missing.add(key)
         return bmp
+    }
+
+    private fun decodeFile(path: String?, size: Int): Bitmap? {
+        if (path == null) return null
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, bounds)
+            var sample = 1
+            while (bounds.outWidth / (sample * 2) >= size && bounds.outHeight / (sample * 2) >= size) sample *= 2
+            BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun fromEmbedded(context: Context, uri: Uri, size: Int): Bitmap? {

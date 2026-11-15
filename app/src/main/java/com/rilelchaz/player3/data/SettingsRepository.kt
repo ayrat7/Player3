@@ -34,6 +34,11 @@ object Keys {
     val miniProgress = booleanPreferencesKey("mini_progress")
     val minDuration = intPreferencesKey("min_duration")
     val sort = intPreferencesKey("sort")
+    val artFx = intPreferencesKey("art_fx")
+    val wavySeek = booleanPreferencesKey("wavy_seek")
+    val waveAmp = floatPreferencesKey("wave_amp")
+    val outputMode = intPreferencesKey("output_mode")
+    val pauseOnUnplug = booleanPreferencesKey("pause_on_unplug")
     val favorites = stringSetPreferencesKey("favorites")
 }
 
@@ -62,6 +67,11 @@ class SettingsRepository(private val context: Context) {
             miniProgress = p[Keys.miniProgress] ?: d.miniProgress,
             minDurationSec = p[Keys.minDuration] ?: d.minDurationSec,
             sort = p[Keys.sort] ?: d.sort,
+            artFx = p[Keys.artFx] ?: d.artFx,
+            wavySeek = p[Keys.wavySeek] ?: d.wavySeek,
+            waveAmp = p[Keys.waveAmp] ?: d.waveAmp,
+            outputMode = p[Keys.outputMode] ?: d.outputMode,
+            pauseOnUnplug = p[Keys.pauseOnUnplug] ?: d.pauseOnUnplug,
         )
     }
 
@@ -71,6 +81,15 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun <T> set(key: Preferences.Key<T>, value: T) {
         context.dataStore.edit { it[key] = value }
+    }
+
+    /** Сбрасывает все настройки к значениям по умолчанию (избранное остаётся). */
+    suspend fun resetAppearance() {
+        context.dataStore.edit { p ->
+            val fav = p[Keys.favorites]
+            p.clear()
+            if (fav != null) p[Keys.favorites] = fav
+        }
     }
 
     suspend fun toggleFavorite(id: Long) {

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
@@ -54,10 +56,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rilelchaz.player3.MainViewModel
 import com.rilelchaz.player3.data.Keys
 import com.rilelchaz.player3.data.MusicGroup
-import com.rilelchaz.player3.tracksWord
+import com.rilelchaz.player3.data.Track
 
 @Composable
-fun SongsScreen(vm: MainViewModel) {
+fun SongsScreen(vm: MainViewModel, actions: TrackActions) {
     val tracks by vm.tracks.collectAsStateWithLifecycle()
     val s by vm.settings.collectAsStateWithLifecycle()
     val favs by vm.favorites.collectAsStateWithLifecycle()
@@ -150,10 +152,8 @@ fun SongsScreen(vm: MainViewModel) {
                     isPlaying = playing,
                     s = s,
                     favorite = t.id in favs,
+                    actions = actions,
                     onClick = { vm.play(shown, index) },
-                    onPlayNext = { vm.playNext(t) },
-                    onAddQueue = { vm.addToQueue(t) },
-                    onToggleFav = { vm.toggleFavorite(t.id) }
                 )
             }
         }
@@ -218,79 +218,105 @@ fun ArtistsScreen(vm: MainViewModel, onOpen: (MusicGroup) -> Unit) {
     LazyColumn(Modifier.fillMaxSize()) {
         items(artists.size, key = { artists[it].key }) { i ->
             val g = artists[i]
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable { onOpen(g) }
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TrackArt(g.tracks.first(), Modifier.size(52.dp), CircleShape)
-                Spacer(Modifier.width(14.dp))
-                Column {
-                    Text(g.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(g.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            ListRow(
+                onClick = { onOpen(g) },
+                title = g.title,
+                subtitle = g.subtitle,
+                leading = { TrackArt(g.tracks.first(), Modifier.size(52.dp), CircleShape) }
+            )
         }
     }
 }
 
 @Composable
-private fun EmptyHint(text: String) {
+fun EmptyHint(text: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
+/**
+ * Универсальный экран со списком треков: альбом, исполнитель, плейлист, папка, умный список.
+ * topContent — доп. элементы сверху (например, плейлисты внутри папки).
+ */
 @Composable
-fun DetailScreen(group: MusicGroup, vm: MainViewModel, onBack: () -> Unit) {
+fun TrackListScreen(
+    title: String,
+    subtitle: String,
+    tracks: List<Track>,
+    vm: MainViewModel,
+    actions: TrackActions,
+    onBack: () -> Unit,
+    cover: (@Composable () -> Unit)? = null,
+    menuContent: (@Composable androidx.compose.foundation.layout.ColumnScope.(dismiss: () -> Unit) -> Unit)? = null,
+    topContent: (LazyListScope.() -> Unit)? = null,
+) {
     val s by vm.settings.collectAsStateWithLifecycle()
     val favs by vm.favorites.collectAsStateWithLifecycle()
     val current by vm.current.collectAsStateWithLifecycle()
     val playing by vm.isPlaying.collectAsStateWithLifecycle()
+    var menu by remember { mutableStateOf(false) }
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Назад") }
+                if (cover != null) {
+                    cover()
+                    Spacer(Modifier.width(12.dp))
+                }
                 Column(Modifier.weight(1f)) {
-                    Text(group.title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        "${group.subtitle} • ${tracksWord(group.tracks.size)}",
+                        subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                if (menuContent != null) {
+                    Box {
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "Меню") }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            menuContent(this) { menu = false }
+                        }
+                    }
+                }
             }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.play(group.tracks, 0) }) {
+                Button(onClick = { vm.play(tracks, 0) }, enabled = tracks.isNotEmpty()) {
                     Icon(Icons.Rounded.PlayArrow, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Играть")
                 }
-                FilledTonalButton(onClick = { vm.playShuffled(group.tracks) }) {
+                FilledTonalButton(onClick = { vm.playShuffled(tracks) }, enabled = tracks.isNotEmpty()) {
                     Icon(Icons.Rounded.Shuffle, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Перемешать")
                 }
             }
         }
-        itemsIndexed(group.tracks, key = { _, t -> t.id }) { index, t ->
+        topContent?.invoke(this)
+        if (tracks.isEmpty()) {
+            item {
+                Text(
+                    "Здесь пока нет треков.\nДобавляйте их через меню «⋮» → «В плейлист или папку…»",
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        itemsIndexed(tracks, key = { _, t -> t.id }) { index, t ->
             TrackRow(
                 track = t,
                 isCurrent = current?.id == t.id,
                 isPlaying = playing,
                 s = s,
                 favorite = t.id in favs,
-                onClick = { vm.play(group.tracks, index) },
-                onPlayNext = { vm.playNext(t) },
-                onAddQueue = { vm.addToQueue(t) },
-                onToggleFav = { vm.toggleFavorite(t.id) }
+                actions = actions,
+                onClick = { vm.play(tracks, index) },
             )
         }
     }

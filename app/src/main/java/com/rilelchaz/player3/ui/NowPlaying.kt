@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
@@ -132,12 +133,22 @@ fun MiniPlayer(vm: MainViewModel, onOpen: () -> Unit) {
                 }
             }
             if (s.miniProgress) {
-                LinearProgressIndicator(
-                    progress = { if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                )
+                val frac = if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
+                if (s.wavySeek) {
+                    WavyLine(
+                        progress = frac,
+                        playing = playing,
+                        amplitude = (2.5f * s.waveAmp).dp,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 6.dp).height(14.dp)
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = { frac },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                    )
+                }
             }
         }
     }
@@ -173,12 +184,15 @@ fun NowPlayingScreen(vm: MainViewModel, onClose: () -> Unit) {
     var angle by remember { mutableFloatStateOf(0f) }
 
     val spin = s.spinArt
-    LaunchedEffect(playing, spin) {
-        if (playing && spin) {
+    var fxT by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(playing, spin, s.artFx) {
+        if (playing && (spin || s.artFx != 0)) {
             var last = androidx.compose.runtime.withFrameMillis { it }
             while (true) {
                 val now = androidx.compose.runtime.withFrameMillis { it }
-                angle = (angle + (now - last) * 0.03f) % 360f
+                val dt = now - last
+                if (spin) angle = (angle + dt * 0.03f) % 360f
+                fxT += dt
                 last = now
             }
         }
@@ -212,22 +226,26 @@ fun NowPlayingScreen(vm: MainViewModel, onClose: () -> Unit) {
             // обложка
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 BoxWithConstraints {
-                    val side = minOf(maxWidth * s.artSize, maxHeight)
+                    val fxOn = s.artFx != 0
+                    val side = minOf(maxWidth * s.artSize, maxHeight) * (if (fxOn) 0.82f else 1f)
                     val scale by animateFloatAsState(
                         targetValue = if (playing) 1f else 0.88f,
                         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
                         label = "artScale"
                     )
                     val shape = artShape(s.artShape, s.corner)
-                    TrackArt(
-                        t,
-                        Modifier
-                            .size(side)
-                            .graphicsLayer { scaleX = scale; scaleY = scale; rotationZ = angle }
-                            .shadow(18.dp, shape),
-                        shape,
-                        sizePx = 1024
-                    )
+                    Box(Modifier.size(side), contentAlignment = Alignment.Center) {
+                        if (fxOn) CoverFx(s.artFx, fxT, Modifier.requiredSize(side * 1.34f))
+                        TrackArt(
+                            t,
+                            Modifier
+                                .size(side)
+                                .graphicsLayer { scaleX = scale; scaleY = scale; rotationZ = angle }
+                                .shadow(18.dp, shape),
+                            shape,
+                            sizePx = 1024
+                        )
+                    }
                 }
             }
 
@@ -251,15 +269,29 @@ fun NowPlayingScreen(vm: MainViewModel, onClose: () -> Unit) {
 
             // перемотка
             val frac = if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
-            Slider(
-                value = drag ?: frac,
-                onValueChange = { drag = it },
-                onValueChangeFinished = {
-                    drag?.let { vm.seekTo((it * dur).toLong()) }
-                    drag = null
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (s.wavySeek) {
+                WavySeekBar(
+                    value = drag ?: frac,
+                    onValueChange = { drag = it },
+                    onValueChangeFinished = {
+                        drag?.let { vm.seekTo((it * dur).toLong()) }
+                        drag = null
+                    },
+                    playing = playing,
+                    amplitude = (4 * s.waveAmp).dp,
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                )
+            } else {
+                Slider(
+                    value = drag ?: frac,
+                    onValueChange = { drag = it },
+                    onValueChangeFinished = {
+                        drag?.let { vm.seekTo((it * dur).toLong()) }
+                        drag = null
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(formatTime(((drag ?: frac) * dur).toLong()), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
                 Text(
